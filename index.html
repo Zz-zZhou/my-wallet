@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pocket Pro 云账本</title>
+    <title>Pocket Pro v10.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .page { display: none; }
@@ -13,56 +13,85 @@
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
 
-    <div id="syncStatus" class="fixed top-4 right-4 z-50 text-[10px] bg-black/80 text-white px-3 py-1 rounded-full opacity-0 transition-all">同步中...</div>
+    <div id="syncStatus" class="fixed top-4 right-4 z-50 text-[10px] bg-black text-white px-3 py-1 rounded-full opacity-0 transition-all">同步中...</div>
 
     <div id="page-home" class="page active p-6 max-w-md mx-auto">
         <div class="flex justify-between items-center mb-8 pt-4">
             <h1 class="text-3xl font-black italic tracking-tighter">POCKETS.</h1>
-            <button onclick="resetKey()" class="text-[10px] bg-white border border-slate-200 px-2 py-1 rounded-lg shadow-sm text-slate-400">重设钥匙</button>
+            <button onclick="resetKey()" class="text-[10px] bg-white border px-2 py-1 rounded-lg text-slate-400">重设钥匙</button>
         </div>
 
-        <div class="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl mb-10">
-            <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">资产合计 (Net Worth)</p>
+        <div class="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl mb-8">
+            <p class="text-slate-400 text-xs font-bold uppercase mb-2">资产合计</p>
             <h2 id="grandTotal" class="text-4xl font-mono font-bold italic">¥ 0.00</h2>
         </div>
 
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="font-black text-lg">我的荷包</h3>
-            <button onclick="createNewWallet()" class="text-indigo-600 font-bold text-sm">+ 创建荷包</button>
+        <div class="space-y-4 mb-10">
+            <h3 class="font-black text-sm text-slate-400 uppercase tracking-widest">快速入口</h3>
+            <div onclick="openDailyWallet()" class="bg-indigo-600 p-6 rounded-[2rem] shadow-lg text-white flex justify-between items-center active:scale-95 transition-all">
+                <div>
+                    <p class="text-xl font-bold">日常记账</p>
+                    <p class="text-xs opacity-70">登记每日零碎支出</p>
+                </div>
+                <div class="text-2xl">→</div>
+            </div>
+            
+            <div onclick="showPage('page-flexible')" class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex justify-between items-center active:scale-95 transition-all">
+                <div>
+                    <p class="text-lg font-bold">可灵活支配金额</p>
+                    <p class="text-xs text-slate-400">结余与支配建议</p>
+                </div>
+                <div class="text-slate-300">→</div>
+            </div>
         </div>
 
-        <div id="walletGrid" class="grid grid-cols-2 gap-4">
-            </div>
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-black text-sm text-slate-400 uppercase tracking-widest">专项荷包</h3>
+            <button onclick="createNewWallet()" class="text-indigo-600 font-bold text-xs">+ 新增荷包</button>
+        </div>
+
+        <div id="walletGrid" class="grid grid-cols-2 gap-4 pb-10"></div>
     </div>
 
     <div id="page-detail" class="page p-6 max-w-md mx-auto">
         <div class="flex items-center justify-between mb-6">
             <button onclick="showPage('page-home')" class="p-2 -ml-2 text-slate-400 font-bold">← 返回</button>
-            <h2 id="currentWalletName" class="text-xl font-black">荷包详情</h2>
-            <button onclick="deleteCurrentWallet()" class="text-red-300 text-[10px]">注销此包</button>
+            <h2 id="currentWalletName" class="text-xl font-black text-center flex-1">荷包详情</h2>
+            <div class="w-10"></div>
         </div>
 
         <div class="bg-white rounded-[2rem] p-8 shadow-xl border border-slate-100 mb-8 text-center">
-            <p class="text-slate-400 text-[10px] font-bold uppercase mb-1">当前余额</p>
+            <p class="text-slate-400 text-[10px] font-bold uppercase mb-1">余额</p>
             <h3 id="currentBalance" class="text-4xl font-mono font-bold">¥ 0.00</h3>
         </div>
 
         <div class="bg-white rounded-[2.5rem] p-6 shadow-lg border border-slate-100 mb-8 space-y-4">
-            <input type="text" id="itemName" class="w-full bg-slate-50 border-none rounded-2xl p-4 outline-none focus:ring-2 focus:ring-slate-900" placeholder="项目说明">
+            <input type="text" id="itemName" class="w-full bg-slate-50 border-none rounded-2xl p-4 outline-none" placeholder="项目（如：午饭、退款）">
             <div class="flex gap-2">
                 <input type="number" id="itemAmount" inputmode="decimal" class="flex-1 bg-slate-50 border-none rounded-2xl p-4 font-mono text-xl outline-none" placeholder="0.00">
-                <select id="itemType" class="bg-slate-50 border-none rounded-2xl px-4 font-bold text-sm outline-none">
+                <select id="itemType" class="bg-slate-50 border-none rounded-2xl px-2 font-bold text-xs outline-none">
                     <option value="expense">支出</option>
-                    <option value="income">存入/收入</option>
+                    <option value="income">存入</option>
                     <option value="refund">退款</option>
                     <option value="reimburse">报销</option>
                 </select>
             </div>
-            <button onclick="saveRecord()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black shadow-lg active:scale-95 transition-all">确认登记</button>
+            <button onclick="saveRecord()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black">确认登记</button>
         </div>
 
-        <h4 class="font-black mb-4 flex items-center text-sm"><span class="w-1 h-4 bg-slate-900 mr-2 rounded-full"></span> 往来明细</h4>
         <div id="recordList" class="space-y-3 pb-20"></div>
+    </div>
+
+    <div id="page-flexible" class="page p-6 max-w-md mx-auto">
+        <button onclick="showPage('page-home')" class="mb-6 text-slate-400 font-bold">← 返回首页</button>
+        <h2 class="text-2xl font-black mb-6">可灵活支配</h2>
+        <div class="bg-emerald-500 rounded-[2rem] p-8 text-white mb-6">
+            <p class="opacity-70 text-xs">当前剩余可支配</p>
+            <h3 id="flexBalance" class="text-4xl font-mono font-bold">¥ 0.00</h3>
+        </div>
+        <div class="bg-white p-6 rounded-2xl shadow-sm border text-sm text-slate-500 italic">
+            这里会根据你的“日常记账”荷包余额自动计算。
+        </div>
     </div>
 
     <script>
@@ -75,13 +104,11 @@
         let appData = { wallets: [] };
         let activeWalletId = null;
 
-        // --- 核心同步逻辑 ---
         function getToken() {
             let k = localStorage.getItem('gh_token');
-            if(!k) { k = prompt("请输入 GitHub Token:"); if(k) localStorage.setItem('gh_token', k); }
+            if(!k) { k = prompt("请输入 Token:"); if(k) localStorage.setItem('gh_token', k); }
             return k;
         }
-
         function resetKey() { localStorage.removeItem('gh_token'); location.reload(); }
 
         async function sync(method, data = null) {
@@ -107,31 +134,21 @@
                 const res = await fetch(url, {
                     method: 'PUT',
                     headers,
-                    body: JSON.stringify({
-                        message: 'update',
-                        content: btoa(unescape(encodeURIComponent(JSON.stringify(data)))),
-                        sha: sha
-                    })
+                    body: JSON.stringify({ message: 'update', content: btoa(unescape(encodeURIComponent(JSON.stringify(data)))), sha: sha })
                 });
                 toggleSync(false);
                 return res.ok;
             }
+            toggleSync(false);
         }
 
-        // --- 页面切换 ---
-        function showPage(id) {
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            if(id === 'page-home') renderHome();
-        }
-
-        // --- 业务逻辑 ---
         async function init() {
             const remote = await sync('GET');
-            if(remote) appData = remote;
-            // 如果一个荷包都没有，初始化一个默认的
-            if(appData.wallets.length === 0) {
-                appData.wallets.push({ id: Date.now(), name: '日常可支配', records: [], color: 'bg-indigo-500' });
+            if(remote) {
+                appData = remote;
+            } else {
+                // 初始化：自动创建“日常记账”荷包
+                appData.wallets = [{ id: 'daily', name: '日常记账', records: [], color: 'bg-indigo-500' }];
             }
             renderHome();
         }
@@ -143,31 +160,22 @@
             appData.wallets.forEach(w => {
                 const bal = calculateBalance(w);
                 total += bal;
-                grid.innerHTML += `
-                    <div onclick="openWallet(${w.id})" class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 active:scale-95 transition-all">
-                        <div class="w-8 h-8 ${w.color || 'bg-slate-400'} rounded-full mb-3 shadow-inner"></div>
-                        <p class="text-slate-400 text-[10px] font-black uppercase">${w.name}</p>
-                        <p class="text-xl font-mono font-bold mt-1">¥${bal.toFixed(2)}</p>
-                    </div>
-                `;
+                // 首页的专项荷包列表（排除掉日常记账，因为它已有独立大入口）
+                if(w.id !== 'daily') {
+                    grid.innerHTML += `
+                        <div onclick="openWallet('${w.id}')" class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 active:scale-95 transition-all">
+                            <div class="w-6 h-6 ${w.color} rounded-full mb-2"></div>
+                            <p class="text-slate-400 text-[10px] font-black">${w.name}</p>
+                            <p class="text-lg font-mono font-bold italic">¥${bal.toFixed(2)}</p>
+                        </div>`;
+                }
             });
             document.getElementById('grandTotal').innerText = `¥ ${total.toFixed(2)}`;
+            const daily = appData.wallets.find(x => x.id === 'daily');
+            document.getElementById('flexBalance').innerText = `¥ ${calculateBalance(daily).toFixed(2)}`;
         }
 
-        function createNewWallet() {
-            const name = prompt("给新荷包起个名字：");
-            if(!name) return;
-            const colors = ['bg-emerald-400', 'bg-rose-400', 'bg-amber-400', 'bg-sky-400', 'bg-violet-400'];
-            const newW = {
-                id: Date.now(),
-                name: name,
-                records: [],
-                color: colors[appData.wallets.length % colors.length]
-            };
-            appData.wallets.push(newW);
-            renderHome();
-            sync('PUT', appData);
-        }
+        function openDailyWallet() { openWallet('daily'); }
 
         function openWallet(id) {
             activeWalletId = id;
@@ -177,21 +185,28 @@
             renderDetail();
         }
 
+        function showPage(id) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(id === 'page-home') renderHome();
+        }
+
+        function createNewWallet() {
+            const name = prompt("荷包名称:");
+            if(!name) return;
+            const newW = { id: Date.now().toString(), name, records: [], color: 'bg-emerald-400' };
+            appData.wallets.push(newW);
+            renderHome();
+            sync('PUT', appData);
+        }
+
         async function saveRecord() {
-            const name = document.getElementById('itemName').value || "未命名记录";
+            const name = document.getElementById('itemName').value || "未命名";
             const amt = parseFloat(document.getElementById('itemAmount').value);
             const type = document.getElementById('itemType').value;
             if(isNaN(amt)) return;
-
             const w = appData.wallets.find(x => x.id === activeWalletId);
-            w.records.unshift({
-                id: Date.now(),
-                name,
-                amt,
-                type, // expense, income, refund, reimburse
-                date: new Date().toLocaleString()
-            });
-
+            w.records.unshift({ id: Date.now(), name, amt, type, date: new Date().toLocaleString() });
             renderDetail();
             await sync('PUT', appData);
             document.getElementById('itemName').value = '';
@@ -202,43 +217,19 @@
             const w = appData.wallets.find(x => x.id === activeWalletId);
             const list = document.getElementById('recordList');
             list.innerHTML = '';
-            
             w.records.forEach(r => {
-                let typeText = "支出";
-                let colorClass = "text-red-500";
-                let prefix = "-";
-                
-                if(r.type === 'income' || r.type === 'refund' || r.type === 'reimburse') {
-                    typeText = r.type === 'income' ? '存入' : (r.type === 'refund' ? '退款' : '报销');
-                    colorClass = "text-emerald-500";
-                    prefix = "+";
-                }
-
+                const isPlus = (r.type !== 'expense');
                 list.innerHTML += `
                     <div class="bg-white p-4 rounded-2xl border border-slate-50 flex justify-between items-center shadow-sm">
-                        <div>
-                            <p class="font-bold text-sm text-slate-800">${r.name}</p>
-                            <p class="text-[9px] text-slate-300">${r.date} · <span class="bg-slate-100 px-1 rounded">${typeText}</span></p>
-                        </div>
-                        <p class="${colorClass} font-mono font-bold">${prefix}¥${r.amt.toFixed(2)}</p>
-                    </div>
-                `;
+                        <div><p class="font-bold text-sm">${r.name}</p><p class="text-[9px] text-slate-300">${r.date}</p></div>
+                        <p class="${isPlus?'text-emerald-500':'text-red-500'} font-mono font-bold">${isPlus?'+':'-'}¥${r.amt.toFixed(2)}</p>
+                    </div>`;
             });
             document.getElementById('currentBalance').innerText = `¥ ${calculateBalance(w).toFixed(2)}`;
         }
 
         function calculateBalance(w) {
-            return w.records.reduce((sum, r) => {
-                if(r.type === 'expense') return sum - r.amt;
-                return sum + r.amt; // 其他类型(存入/退款/报销)都是增加余额
-            }, 0);
-        }
-
-        function deleteCurrentWallet() {
-            if(!confirm("确定要注销这个荷包吗？数据将无法找回。")) return;
-            appData.wallets = appData.wallets.filter(x => x.id !== activeWalletId);
-            showPage('page-home');
-            sync('PUT', appData);
+            return w.records.reduce((sum, r) => (r.type === 'expense' ? sum - r.amt : sum + r.amt), 0);
         }
 
         function toggleSync(show) { document.getElementById('syncStatus').style.opacity = show ? 1 : 0; }
