@@ -1,240 +1,133 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>我的私人记账系统 v8.2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>粥粥酱的资金管家 v9.7</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .custom-scroll::-webkit-scrollbar { width: 4px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .page { display: none; }
-        .page.active { display: block; }
-        /* 简易弹窗样式 */
-        #depositModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; align-items: center; justify-content: center; }
-        #depositModal.flex { display: flex; }
-    </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
-
-    <div id="depositModal" class="p-4">
-        <div class="bg-white rounded-[2rem] p-6 w-full max-w-xs shadow-2xl">
-            <h3 class="text-lg font-black mb-4 text-center">存入哪个荷包？</h3>
-            <div id="walletChoices" class="space-y-2 mb-6">
-                </div>
-            <button onclick="closeDepositModal()" class="w-full text-slate-400 text-sm font-bold">取消</button>
+<body class="bg-slate-50 min-h-screen text-slate-800">
+    <div class="max-w-md mx-auto p-6">
+        <div id="status" class="fixed top-4 right-4 text-[10px] bg-slate-900 text-white px-3 py-1 rounded-full opacity-0 transition-opacity">同步中...</div>
+        
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-black">我的钱包</h1>
+            <button onclick="resetKey()" class="text-[10px] text-slate-400 border border-slate-200 px-2 py-1 rounded">重设钥匙</button>
         </div>
-    </div>
-
-    <div id="page-home" class="page active p-6 max-w-md mx-auto">
-        <header class="py-8 text-center">
-            <h1 class="text-3xl font-black text-slate-900 tracking-tight italic">Pocket Admin</h1>
-            <p class="text-slate-400 text-sm mt-2 font-medium">资金联动管理版</p>
-        </header>
-
-        <div class="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl mb-8">
-            <p class="text-slate-400 text-xs mb-1">总资产合计</p>
-            <h2 class="text-4xl font-mono font-bold" id="grandTotal">¥ 0.00</h2>
+        
+        <div class="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl mb-6">
+            <p class="text-slate-400 text-xs font-bold">云端同步总额</p>
+            <h2 id="total" class="text-4xl font-mono font-bold">¥ 0.00</h2>
         </div>
 
-        <div class="grid grid-cols-2 gap-4" id="walletList"></div>
-
-        <button onclick="createNewWallet()" class="w-full mt-8 border-2 border-dashed border-slate-300 rounded-3xl py-6 text-slate-400 font-bold hover:border-blue-400 hover:text-blue-500 transition-all">
-            + 新增存款荷包
-        </button>
-    </div>
-
-    <div id="page-detail" class="page p-6 max-w-md mx-auto">
-        <div class="flex items-center justify-between mb-6">
-            <button onclick="showPage('page-home')" class="text-slate-400 font-bold text-sm flex items-center hover:text-slate-600">
-                <span class="mr-1">←</span> 返回
-            </button>
-            <h2 id="currentTitle" class="text-xl font-black">荷包名称</h2>
-            <button id="btnDeleteWallet" onclick="deleteCurrentWallet()" class="text-red-300 text-xs hover:text-red-500">注销</button>
+        <div class="bg-white rounded-[2rem] p-5 shadow-lg border border-slate-100 mb-6 space-y-3">
+            <input type="text" id="item" class="w-full bg-slate-50 border-none rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="支出项目">
+            <input type="number" id="amount" inputmode="decimal" class="w-full bg-slate-50 border-none rounded-xl p-3 font-mono outline-none focus:ring-2 focus:ring-indigo-500" placeholder="0.00">
+            <button onclick="addRecord()" class="w-full bg-slate-900 text-white py-4 rounded-xl font-black shadow-lg active:scale-95 transition-transform">确认存入云端</button>
         </div>
 
-        <div class="bg-white rounded-[2rem] p-6 shadow-xl border border-slate-100 mb-6">
-            <p class="text-slate-400 text-xs mb-1">余额结余</p>
-            <h3 class="text-3xl font-mono font-bold text-slate-900" id="walletBalance">¥ 0.00</h3>
-        </div>
-
-        <div class="bg-white rounded-[2rem] p-6 shadow-lg border border-slate-100 mb-6 space-y-3">
-            <input type="text" id="item" class="w-full bg-slate-50 border-none rounded-xl p-3 focus:ring-2 focus:ring-blue-400 outline-none" placeholder="项目名称">
-            <div class="flex gap-2">
-                <input type="number" id="amount" class="flex-1 bg-slate-50 border-none rounded-xl p-3 focus:ring-2 focus:ring-blue-400 font-mono outline-none" placeholder="金额">
-                <select id="typeSelector" class="bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-400 outline-none"></select>
-            </div>
-            <button onclick="handleAddClick()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-700 active:scale-95 transition-all">确认登记</button>
-        </div>
-
-        <div class="space-y-3 h-[450px] overflow-y-auto pr-1 custom-scroll" id="recordList"></div>
+        <div id="list" class="space-y-3 h-[400px] overflow-y-auto pb-10"></div>
     </div>
 
     <script>
-        let wallets = JSON.parse(localStorage.getItem('my_wallets_v8_2')) || [
-            { id: 'default', name: '日常可支配', records: [], color: 'bg-indigo-500', isDaily: true }
-        ];
-        let currentId = null;
-        let pendingDeposit = null; // 用于临时存放待存入的金额信息
+        // ================= 配置区 (代码里不存 Token) =================
+        const REPO_OWNER = 'Zz-zZhou'; 
+        const REPO_NAME = 'my-wallet'; 
+        const DATA_FILE = 'data.json'; 
+        // ===========================================================
 
-        function showPage(pageId) {
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.getElementById(pageId).classList.add('active');
-            if(pageId === 'page-home') renderHome();
+        let records = [];
+
+        // 获取 Token：先从本地拿，拿不到就弹窗问你要
+        function getToken() {
+            let key = localStorage.getItem('gh_wallet_token');
+            if (!key) {
+                key = prompt("为了安全，请粘贴你的 GitHub Token (ghp_开头的那串):");
+                if (key) localStorage.setItem('gh_wallet_token', key);
+            }
+            return key;
         }
 
-        function renderHome() {
-            const list = document.getElementById('walletList');
-            list.innerHTML = ''; let total = 0;
-            wallets.forEach(w => {
-                const balance = calculateBalance(w);
-                total += balance;
-                const card = document.createElement('div');
-                card.className = "bg-white p-6 rounded-[2rem] shadow-md border border-slate-100 cursor-pointer hover:shadow-xl transition-all";
-                card.onclick = () => openWallet(w.id);
-                card.innerHTML = `<div class="w-8 h-8 ${w.color} rounded-full mb-4 shadow-inner"></div><p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">${w.name}</p><p class="text-lg font-mono font-bold mt-1">¥${balance.toFixed(2)}</p>`;
-                list.appendChild(card);
-            });
-            document.getElementById('grandTotal').innerText = `¥ ${total.toFixed(2)}`;
+        // 重设钥匙的功能
+        function resetKey() {
+            localStorage.removeItem('gh_wallet_token');
+            location.reload();
         }
 
-        function openWallet(id) {
-            currentId = id;
-            const wallet = wallets.find(w => w.id === id);
-            document.getElementById('currentTitle').innerText = wallet.name;
-            const selector = document.getElementById('typeSelector');
-            selector.innerHTML = wallet.isDaily 
-                ? `<option value="expense">支出 (-)</option><option value="income">收入 (+)</option><option value="save">存款 (锁)</option>`
-                : `<option value="income">存入 (+)</option><option value="expense">支出 (-)</option>`;
-            document.getElementById('btnDeleteWallet').style.display = wallet.isDaily ? 'none' : 'block';
-            showPage('page-detail');
-            renderDetail();
-        }
+        async function api(method, body = null) {
+            const token = getToken();
+            if (!token) return alert("没有钥匙，无法同步数据！");
 
-        function handleAddClick() {
-            const item = document.getElementById('item').value || "未命名项目";
-            const amt = parseFloat(document.getElementById('amount').value);
-            const type = document.getElementById('typeSelector').value;
-            if (isNaN(amt) || amt <= 0) return alert("请输入金额");
+            const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE}`;
+            const headers = { 
+                'Authorization': `token ${token}`,
+                'Accept': 'application/vnd.github.v3+json'
+            };
+            
+            let sha = null;
+            try {
+                const getRes = await fetch(url, { headers });
+                if (getRes.ok) {
+                    const getData = await getRes.json();
+                    sha = getData.sha;
+                    if (method === 'GET') return JSON.parse(decodeURIComponent(escape(atob(getData.content))));
+                }
+            } catch (e) {}
 
-            if (type === 'save' && currentId === 'default') {
-                // 触发存款联动
-                pendingDeposit = { item, amt };
-                showDepositModal();
-            } else {
-                executeAddRecord(currentId, item, amt, type);
+            if (method === 'PUT') {
+                const res = await fetch(url, {
+                    method: 'PUT',
+                    headers,
+                    body: JSON.stringify({
+                        message: 'update data',
+                        content: btoa(unescape(encodeURIComponent(JSON.stringify(body)))),
+                        sha: sha
+                    })
+                });
+                return res.ok;
             }
         }
 
-        function showDepositModal() {
-            const container = document.getElementById('walletChoices');
-            container.innerHTML = '';
-            const otherWallets = wallets.filter(w => !w.isDaily);
-            if (otherWallets.length === 0) return alert("请先在首页创建存款荷包（如：超级虾虾）");
-            
-            otherWallets.forEach(w => {
-                const btn = document.createElement('button');
-                btn.className = "w-full py-3 bg-slate-50 rounded-xl text-sm font-bold hover:bg-blue-50 hover:text-blue-600 transition-colors border border-slate-100";
-                btn.innerText = w.name;
-                btn.onclick = () => confirmDeposit(w.id);
-                container.appendChild(btn);
-            });
-            document.getElementById('depositModal').classList.add('flex');
+        async function load() {
+            toggleStatus(true);
+            const data = await api('GET');
+            if (data) records = data;
+            render();
+            toggleStatus(false);
         }
 
-        function confirmDeposit(targetWalletId) {
-            const targetWallet = wallets.find(w => w.id === targetWalletId);
-            // 1. 在日常页面记一笔支出（存款）
-            executeAddRecord('default', `存款至 [${targetWallet.name}]`, pendingDeposit.amt, 'expense');
-            // 2. 在目标荷包记一笔存入
-            executeAddRecord(targetWalletId, `来自日常的存入: ${pendingDeposit.item}`, pendingDeposit.amt, 'income');
-            
-            closeDepositModal();
-            renderDetail();
-        }
+        async function addRecord() {
+            const item = document.getElementById('item').value;
+            const amt = parseFloat(document.getElementById('amount').value);
+            if (!item || isNaN(amt)) return alert("请填写完整！");
 
-        function executeAddRecord(walletId, item, amt, type) {
-            const wallet = wallets.find(w => w.id === walletId);
-            const now = new Date();
-            wallet.records.unshift({
-                id: Date.now() + Math.random(),
-                item, amount: amt, type,
-                time: `${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`,
-                refund: 0, reimburse: 0, reimburseP: ''
-            });
-            save();
-            if(walletId === currentId) renderDetail();
+            records.unshift({ item, amt, time: new Date().toLocaleString() });
+            render();
+            toggleStatus(true);
+            const success = await api('PUT', records);
+            if (!success) alert("同步失败，请检查 Token 权限或网络");
+            toggleStatus(false);
             document.getElementById('item').value = '';
             document.getElementById('amount').value = '';
         }
 
-        function renderDetail() {
-            const wallet = wallets.find(w => w.id === currentId);
-            const list = document.getElementById('recordList');
+        function render() {
+            const list = document.getElementById('list');
             list.innerHTML = '';
-            wallet.records.forEach(r => {
-                const finalAmt = r.amount - (r.refund || 0) - (r.reimburse || 0);
-                let colorClass = "text-slate-600"; let sign = r.type === 'expense' ? '-' : '+';
-                if (r.type === 'expense') {
-                    if (finalAmt > 0) colorClass = "text-red-500";
-                    else if (finalAmt < 0) { colorClass = "text-emerald-500"; sign = "+"; }
-                    else colorClass = "text-slate-300";
-                } else { colorClass = r.type === 'income' ? 'text-emerald-500' : 'text-amber-500'; }
-
-                const div = document.createElement('div');
-                div.className = "bg-white p-4 rounded-2xl border border-slate-100 shadow-sm";
-                div.innerHTML = `
-                    <div class="flex justify-between items-start mb-2">
-                        <div><p class="font-bold text-sm text-slate-700">${r.item}</p><p class="text-[9px] text-slate-300 font-mono">${r.time}</p></div>
-                        <div class="text-right"><p class="${colorClass} font-mono font-bold">${sign}${Math.abs(finalAmt).toFixed(2)}</p></div>
-                    </div>
-                    <div class="flex gap-4 pt-2 border-t border-slate-50">
-                        ${r.type === 'expense' ? `<button onclick="handleAction(${r.id},'refund')" class="text-[10px] text-slate-400 font-bold">退款</button>
-                        <button onclick="handleAction(${r.id},'reimburse')" class="text-[10px] text-slate-400 font-bold">报销</button>` : ''}
-                        <button onclick="deleteRec(${r.id})" class="text-[10px] text-slate-200 ml-auto transition-colors hover:text-red-400">删除</button>
-                    </div>
-                `;
-                list.appendChild(div);
+            let total = 0;
+            records.forEach(r => {
+                total -= r.amt;
+                list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 flex justify-between shadow-sm animate-in slide-in-from-top duration-300">
+                    <div><p class="font-bold text-sm text-slate-700">${r.item}</p><p class="text-[9px] text-slate-300 italic">${r.time}</p></div>
+                    <p class="text-red-500 font-mono font-bold">-¥${r.amt.toFixed(2)}</p>
+                </div>`;
             });
-            document.getElementById('walletBalance').innerText = `¥ ${calculateBalance(wallet).toFixed(2)}`;
+            document.getElementById('total').innerText = `¥ ${total.toFixed(2)}`;
         }
 
-        function handleAction(rid, act) {
-            const wallet = wallets.find(w => w.id === currentId);
-            const r = wallet.records.find(rec => rec.id === rid);
-            if (act === 'refund') {
-                const v = parseFloat(prompt("退款金额：", r.amount));
-                if (!isNaN(v)) r.refund += v;
-            } else {
-                const p = prompt("报销人：", "女朋友");
-                const v = parseFloat(prompt("报销金额：", r.amount));
-                if (!isNaN(v)) { r.reimburseP = p; r.reimburse += v; }
-            }
-            save(); renderDetail();
-        }
+        function toggleStatus(show) { document.getElementById('status').style.opacity = show ? 1 : 0; }
 
-        function calculateBalance(wallet) {
-            return wallet.records.reduce((sum, r) => {
-                const realExpense = r.amount - (r.refund || 0) - (r.reimburse || 0);
-                return r.type === 'expense' ? sum - realExpense : sum + r.amount;
-            }, 0);
-        }
-
-        function closeDepositModal() { document.getElementById('depositModal').classList.remove('flex'); pendingDeposit = null; }
-        function createNewWallet() {
-            const name = prompt("荷包名称："); if (!name) return;
-            wallets.push({ id: Date.now().toString(), name, records: [], color: 'bg-rose-400', isDaily: false });
-            save(); renderHome();
-        }
-        function deleteRec(rid) {
-            const wallet = wallets.find(w => w.id === currentId);
-            wallet.records = wallet.records.filter(r => r.id !== rid);
-            save(); renderDetail();
-        }
-        function deleteCurrentWallet() {
-            if(confirm("确定注销吗？")) { wallets = wallets.filter(w => w.id !== currentId); save(); showPage('page-home'); }
-        }
-        function save() { localStorage.setItem('my_wallets_v8_2', JSON.stringify(wallets)); }
-        window.onload = () => renderHome();
+        window.onload = load;
     </script>
 </body>
 </html>
