@@ -3,131 +3,247 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>粥粥酱的资金管家 v9.7</title>
+    <title>Pocket Pro 云账本</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .page { display: none; }
+        .page.active { display: block; }
+        ::-webkit-scrollbar { width: 0; }
+    </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-800">
-    <div class="max-w-md mx-auto p-6">
-        <div id="status" class="fixed top-4 right-4 text-[10px] bg-slate-900 text-white px-3 py-1 rounded-full opacity-0 transition-opacity">同步中...</div>
-        
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-black">我的钱包</h1>
-            <button onclick="resetKey()" class="text-[10px] text-slate-400 border border-slate-200 px-2 py-1 rounded">重设钥匙</button>
-        </div>
-        
-        <div class="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl mb-6">
-            <p class="text-slate-400 text-xs font-bold">云端同步总额</p>
-            <h2 id="total" class="text-4xl font-mono font-bold">¥ 0.00</h2>
+<body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
+
+    <div id="syncStatus" class="fixed top-4 right-4 z-50 text-[10px] bg-black/80 text-white px-3 py-1 rounded-full opacity-0 transition-all">同步中...</div>
+
+    <div id="page-home" class="page active p-6 max-w-md mx-auto">
+        <div class="flex justify-between items-center mb-8 pt-4">
+            <h1 class="text-3xl font-black italic tracking-tighter">POCKETS.</h1>
+            <button onclick="resetKey()" class="text-[10px] bg-white border border-slate-200 px-2 py-1 rounded-lg shadow-sm text-slate-400">重设钥匙</button>
         </div>
 
-        <div class="bg-white rounded-[2rem] p-5 shadow-lg border border-slate-100 mb-6 space-y-3">
-            <input type="text" id="item" class="w-full bg-slate-50 border-none rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="支出项目">
-            <input type="number" id="amount" inputmode="decimal" class="w-full bg-slate-50 border-none rounded-xl p-3 font-mono outline-none focus:ring-2 focus:ring-indigo-500" placeholder="0.00">
-            <button onclick="addRecord()" class="w-full bg-slate-900 text-white py-4 rounded-xl font-black shadow-lg active:scale-95 transition-transform">确认存入云端</button>
+        <div class="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl mb-10">
+            <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">资产合计 (Net Worth)</p>
+            <h2 id="grandTotal" class="text-4xl font-mono font-bold italic">¥ 0.00</h2>
         </div>
 
-        <div id="list" class="space-y-3 h-[400px] overflow-y-auto pb-10"></div>
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-black text-lg">我的荷包</h3>
+            <button onclick="createNewWallet()" class="text-indigo-600 font-bold text-sm">+ 创建荷包</button>
+        </div>
+
+        <div id="walletGrid" class="grid grid-cols-2 gap-4">
+            </div>
+    </div>
+
+    <div id="page-detail" class="page p-6 max-w-md mx-auto">
+        <div class="flex items-center justify-between mb-6">
+            <button onclick="showPage('page-home')" class="p-2 -ml-2 text-slate-400 font-bold">← 返回</button>
+            <h2 id="currentWalletName" class="text-xl font-black">荷包详情</h2>
+            <button onclick="deleteCurrentWallet()" class="text-red-300 text-[10px]">注销此包</button>
+        </div>
+
+        <div class="bg-white rounded-[2rem] p-8 shadow-xl border border-slate-100 mb-8 text-center">
+            <p class="text-slate-400 text-[10px] font-bold uppercase mb-1">当前余额</p>
+            <h3 id="currentBalance" class="text-4xl font-mono font-bold">¥ 0.00</h3>
+        </div>
+
+        <div class="bg-white rounded-[2.5rem] p-6 shadow-lg border border-slate-100 mb-8 space-y-4">
+            <input type="text" id="itemName" class="w-full bg-slate-50 border-none rounded-2xl p-4 outline-none focus:ring-2 focus:ring-slate-900" placeholder="项目说明">
+            <div class="flex gap-2">
+                <input type="number" id="itemAmount" inputmode="decimal" class="flex-1 bg-slate-50 border-none rounded-2xl p-4 font-mono text-xl outline-none" placeholder="0.00">
+                <select id="itemType" class="bg-slate-50 border-none rounded-2xl px-4 font-bold text-sm outline-none">
+                    <option value="expense">支出</option>
+                    <option value="income">存入/收入</option>
+                    <option value="refund">退款</option>
+                    <option value="reimburse">报销</option>
+                </select>
+            </div>
+            <button onclick="saveRecord()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black shadow-lg active:scale-95 transition-all">确认登记</button>
+        </div>
+
+        <h4 class="font-black mb-4 flex items-center text-sm"><span class="w-1 h-4 bg-slate-900 mr-2 rounded-full"></span> 往来明细</h4>
+        <div id="recordList" class="space-y-3 pb-20"></div>
     </div>
 
     <script>
-        // ================= 配置区 (代码里不存 Token) =================
+        // ================= 配置区 =================
         const REPO_OWNER = 'Zz-zZhou'; 
         const REPO_NAME = 'my-wallet'; 
         const DATA_FILE = 'data.json'; 
-        // ===========================================================
+        // ==========================================
 
-        let records = [];
+        let appData = { wallets: [] };
+        let activeWalletId = null;
 
-        // 获取 Token：先从本地拿，拿不到就弹窗问你要
+        // --- 核心同步逻辑 ---
         function getToken() {
-            let key = localStorage.getItem('gh_wallet_token');
-            if (!key) {
-                key = prompt("为了安全，请粘贴你的 GitHub Token (ghp_开头的那串):");
-                if (key) localStorage.setItem('gh_wallet_token', key);
-            }
-            return key;
+            let k = localStorage.getItem('gh_token');
+            if(!k) { k = prompt("请输入 GitHub Token:"); if(k) localStorage.setItem('gh_token', k); }
+            return k;
         }
 
-        // 重设钥匙的功能
-        function resetKey() {
-            localStorage.removeItem('gh_wallet_token');
-            location.reload();
-        }
+        function resetKey() { localStorage.removeItem('gh_token'); location.reload(); }
 
-        async function api(method, body = null) {
-            const token = getToken();
-            if (!token) return alert("没有钥匙，无法同步数据！");
-
+        async function sync(method, data = null) {
+            const token = getToken(); if(!token) return null;
+            toggleSync(true);
             const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE}`;
-            const headers = { 
-                'Authorization': `token ${token}`,
-                'Accept': 'application/vnd.github.v3+json'
-            };
+            const headers = { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' };
             
             let sha = null;
             try {
-                const getRes = await fetch(url, { headers });
-                if (getRes.ok) {
-                    const getData = await getRes.json();
-                    sha = getData.sha;
-                    if (method === 'GET') return JSON.parse(decodeURIComponent(escape(atob(getData.content))));
+                const res = await fetch(url, { headers });
+                if(res.ok) {
+                    const json = await res.json();
+                    sha = json.sha;
+                    if(method === 'GET') {
+                        toggleSync(false);
+                        return JSON.parse(decodeURIComponent(escape(atob(json.content))));
+                    }
                 }
-            } catch (e) {}
+            } catch(e) {}
 
-            if (method === 'PUT') {
+            if(method === 'PUT') {
                 const res = await fetch(url, {
                     method: 'PUT',
                     headers,
                     body: JSON.stringify({
-                        message: 'update data',
-                        content: btoa(unescape(encodeURIComponent(JSON.stringify(body)))),
+                        message: 'update',
+                        content: btoa(unescape(encodeURIComponent(JSON.stringify(data)))),
                         sha: sha
                     })
                 });
+                toggleSync(false);
                 return res.ok;
             }
         }
 
-        async function load() {
-            toggleStatus(true);
-            const data = await api('GET');
-            if (data) records = data;
-            render();
-            toggleStatus(false);
+        // --- 页面切换 ---
+        function showPage(id) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(id === 'page-home') renderHome();
         }
 
-        async function addRecord() {
-            const item = document.getElementById('item').value;
-            const amt = parseFloat(document.getElementById('amount').value);
-            if (!item || isNaN(amt)) return alert("请填写完整！");
-
-            records.unshift({ item, amt, time: new Date().toLocaleString() });
-            render();
-            toggleStatus(true);
-            const success = await api('PUT', records);
-            if (!success) alert("同步失败，请检查 Token 权限或网络");
-            toggleStatus(false);
-            document.getElementById('item').value = '';
-            document.getElementById('amount').value = '';
+        // --- 业务逻辑 ---
+        async function init() {
+            const remote = await sync('GET');
+            if(remote) appData = remote;
+            // 如果一个荷包都没有，初始化一个默认的
+            if(appData.wallets.length === 0) {
+                appData.wallets.push({ id: Date.now(), name: '日常可支配', records: [], color: 'bg-indigo-500' });
+            }
+            renderHome();
         }
 
-        function render() {
-            const list = document.getElementById('list');
-            list.innerHTML = '';
+        function renderHome() {
+            const grid = document.getElementById('walletGrid');
+            grid.innerHTML = '';
             let total = 0;
-            records.forEach(r => {
-                total -= r.amt;
-                list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 flex justify-between shadow-sm animate-in slide-in-from-top duration-300">
-                    <div><p class="font-bold text-sm text-slate-700">${r.item}</p><p class="text-[9px] text-slate-300 italic">${r.time}</p></div>
-                    <p class="text-red-500 font-mono font-bold">-¥${r.amt.toFixed(2)}</p>
-                </div>`;
+            appData.wallets.forEach(w => {
+                const bal = calculateBalance(w);
+                total += bal;
+                grid.innerHTML += `
+                    <div onclick="openWallet(${w.id})" class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 active:scale-95 transition-all">
+                        <div class="w-8 h-8 ${w.color || 'bg-slate-400'} rounded-full mb-3 shadow-inner"></div>
+                        <p class="text-slate-400 text-[10px] font-black uppercase">${w.name}</p>
+                        <p class="text-xl font-mono font-bold mt-1">¥${bal.toFixed(2)}</p>
+                    </div>
+                `;
             });
-            document.getElementById('total').innerText = `¥ ${total.toFixed(2)}`;
+            document.getElementById('grandTotal').innerText = `¥ ${total.toFixed(2)}`;
         }
 
-        function toggleStatus(show) { document.getElementById('status').style.opacity = show ? 1 : 0; }
+        function createNewWallet() {
+            const name = prompt("给新荷包起个名字：");
+            if(!name) return;
+            const colors = ['bg-emerald-400', 'bg-rose-400', 'bg-amber-400', 'bg-sky-400', 'bg-violet-400'];
+            const newW = {
+                id: Date.now(),
+                name: name,
+                records: [],
+                color: colors[appData.wallets.length % colors.length]
+            };
+            appData.wallets.push(newW);
+            renderHome();
+            sync('PUT', appData);
+        }
 
-        window.onload = load;
+        function openWallet(id) {
+            activeWalletId = id;
+            const w = appData.wallets.find(x => x.id === id);
+            document.getElementById('currentWalletName').innerText = w.name;
+            showPage('page-detail');
+            renderDetail();
+        }
+
+        async function saveRecord() {
+            const name = document.getElementById('itemName').value || "未命名记录";
+            const amt = parseFloat(document.getElementById('itemAmount').value);
+            const type = document.getElementById('itemType').value;
+            if(isNaN(amt)) return;
+
+            const w = appData.wallets.find(x => x.id === activeWalletId);
+            w.records.unshift({
+                id: Date.now(),
+                name,
+                amt,
+                type, // expense, income, refund, reimburse
+                date: new Date().toLocaleString()
+            });
+
+            renderDetail();
+            await sync('PUT', appData);
+            document.getElementById('itemName').value = '';
+            document.getElementById('itemAmount').value = '';
+        }
+
+        function renderDetail() {
+            const w = appData.wallets.find(x => x.id === activeWalletId);
+            const list = document.getElementById('recordList');
+            list.innerHTML = '';
+            
+            w.records.forEach(r => {
+                let typeText = "支出";
+                let colorClass = "text-red-500";
+                let prefix = "-";
+                
+                if(r.type === 'income' || r.type === 'refund' || r.type === 'reimburse') {
+                    typeText = r.type === 'income' ? '存入' : (r.type === 'refund' ? '退款' : '报销');
+                    colorClass = "text-emerald-500";
+                    prefix = "+";
+                }
+
+                list.innerHTML += `
+                    <div class="bg-white p-4 rounded-2xl border border-slate-50 flex justify-between items-center shadow-sm">
+                        <div>
+                            <p class="font-bold text-sm text-slate-800">${r.name}</p>
+                            <p class="text-[9px] text-slate-300">${r.date} · <span class="bg-slate-100 px-1 rounded">${typeText}</span></p>
+                        </div>
+                        <p class="${colorClass} font-mono font-bold">${prefix}¥${r.amt.toFixed(2)}</p>
+                    </div>
+                `;
+            });
+            document.getElementById('currentBalance').innerText = `¥ ${calculateBalance(w).toFixed(2)}`;
+        }
+
+        function calculateBalance(w) {
+            return w.records.reduce((sum, r) => {
+                if(r.type === 'expense') return sum - r.amt;
+                return sum + r.amt; // 其他类型(存入/退款/报销)都是增加余额
+            }, 0);
+        }
+
+        function deleteCurrentWallet() {
+            if(!confirm("确定要注销这个荷包吗？数据将无法找回。")) return;
+            appData.wallets = appData.wallets.filter(x => x.id !== activeWalletId);
+            showPage('page-home');
+            sync('PUT', appData);
+        }
+
+        function toggleSync(show) { document.getElementById('syncStatus').style.opacity = show ? 1 : 0; }
+
+        window.onload = init;
     </script>
 </body>
 </html>
